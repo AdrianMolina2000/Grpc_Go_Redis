@@ -5,6 +5,7 @@ COPY . .
 
 RUN go mod download
 
-EXPOSE 8000
+EXPOSE 50051
+EXPOSE 2000
 
-CMD ["go", "run", "client.go"]
+CMD ["go", "run", "client_api.go"]

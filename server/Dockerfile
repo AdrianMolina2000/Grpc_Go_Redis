@@ -6,5 +6,6 @@ COPY . .
 RUN go mod download
 
 EXPOSE 50051
+EXPOSE 6379
 
 CMD ["go", "run", "server.go"]

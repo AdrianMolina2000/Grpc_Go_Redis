@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 	pb "servergRPC/proto"
+	"time"
 
-	"github.com/gomodule/redigo/redis"
+	"github.com/go-redis/redis/v8"
+
+	// "github.com/gomodule/redigo/redis"
 	"google.golang.org/grpc"
 )
 
@@ -36,40 +40,36 @@ func (s *server) AgregarData(ctx context.Context, in *pb.RequestData) (*pb.Respo
 	score := in.GetScore()
 	phase := in.GetPhase()
 
-	fmt.Println("Se ha insertado correctamente el partido", team1, team2, score, phase)
-
 	output, err := json.Marshal(Partido{Team1: team1, Team2: team2, Score: score, Phase: phase})
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	conn, err := redis.DialURL("redis://localhost:6379")
+	redisHost := "redisPF.redis.cache.windows.net:6380"
+	redisPassword := "fnU7xijFdWUwB0Cms1RlzqtuAI9D6ygGbAzCaKpFSlo="
+
+	op := &redis.Options{Addr: redisHost, Password: redisPassword, TLSConfig: &tls.Config{MinVersion: tls.VersionTLS12}, WriteTimeout: 5 * time.Second}
+	client := redis.NewClient(op)
+
+	err = client.Ping(ctx).Err()
+	if err != nil {
+		log.Fatalf("failed to connect with redis instance at %s - %v", redisHost, err)
+	}
+
+	_, err = client.LPush(ctx, "partidos", output).Result()
 	if err != nil {
 		fmt.Printf("ERROR: fail initializing the redis pool: %s", err.Error())
 	}
 
-	a, err := conn.Do("lpush", "partidos", output)
-	if err != nil {
-		fmt.Println(err)
-		fmt.Println(a)
-	}
-
-	// b, err := conn.Do("lpush", "team2", team2)
+	// conn, err := redis.DialURL("redis://localhost:6379")
 	// if err != nil {
-	// 	fmt.Println(err)
-	// 	fmt.Println(b)
+	// 	fmt.Printf("ERROR: fail initializing the redis pool: %s", err.Error())
 	// }
 
-	// c, err := conn.Do("lpush", "score", score)
+	// a, err := conn.Do("lpush", "partidos", output)
 	// if err != nil {
 	// 	fmt.Println(err)
-	// 	fmt.Println(c)
-	// }
-
-	// d, err := conn.Do("lpush", "phase", phase)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	fmt.Println(d)
+	// 	fmt.Println(a)
 	// }
 
 	return &pb.ResponseData{Respuesta: "Se ha insertado conrrectamente el partido"}, nil
